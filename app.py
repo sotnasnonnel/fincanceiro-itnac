@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 def configure_page():
     st.set_page_config(layout="wide", page_title="Dashboard", page_icon=":bar_chart:")
 
+configure_page()
+
 # Função para conectar ao MongoDB
 def get_mongo_client():
     try:
