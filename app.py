@@ -3,6 +3,7 @@ import pandas as pd
 from pymongo import MongoClient, errors
 from datetime import datetime
 import requests
+from urllib.parse import urlencode
 
 # Função para conectar ao MongoDB
 def get_mongo_client():
@@ -50,7 +51,11 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
         except Exception as e:
             st.error(f"Erro ao salvar o recibo: {e}")
 
-
+def recarregar_pagina():
+    params = {"recarregar": "true"}
+    url = f"{st.experimental_get_query_params()}?{urlencode(params)}"
+    st.experimental_set_query_params(**params)
+    
 # Função para carregar todos os valores pagos para cálculo geral
 def carregar_todos_os_valores():
     client = get_mongo_client()
