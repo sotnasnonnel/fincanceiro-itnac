@@ -19,6 +19,35 @@ def get_mongo_client():
         st.error(f"Erro ao conectar ao MongoDB: {err}")
         return None
 
+# Função para salvar recibo e atualizar status no banco de dados
+def salvar_recibo(nome, recibo, mes_ano, data_recibo):
+    client = get_mongo_client()
+    if client:
+        try:
+            collection = client['teste']['financeiro_itnac']
+            data_datetime = datetime.combine(data_recibo, datetime.min.time())
+            recibo_bytes = recibo.read()
+
+            result = collection.update_one(
+                {'nome': nome, 'mes_ano': mes_ano},
+                {
+                    '$inc': {'valor': 50.00},
+                    '$set': {
+                        'recibo': recibo_bytes,
+                        'data': data_datetime,
+                        'pago': True
+                    }
+                }
+            )
+
+            if result.modified_count > 0:
+                st.success(f"Recibo de {nome} salvo e status atualizado!")
+            else:
+                st.error("Erro ao atualizar o recibo no banco de dados.")
+
+        except Exception as e:
+            st.error(f"Erro ao salvar o recibo: {e}")
+
 # Função para carregar todos os valores pagos para cálculo geral
 def carregar_todos_os_valores():
     client = get_mongo_client()
@@ -65,8 +94,6 @@ mes_ano = st.sidebar.selectbox("Selecione o Mês/Ano", gerar_filtro_meses(), ind
 
 # Carregar alunos e valores
 alunos_df = carregar_lista_alunos(mes_ano)
-
-# Calcular os valores
 valor_mes = alunos_df[alunos_df['pago'] == True]['valor'].sum() if 'valor' in alunos_df.columns else 0
 valor_geral = carregar_todos_os_valores()
 
@@ -116,32 +143,3 @@ with col_listas:
     else:
         for nome in pendentes['nome']:
             st.write(f"- {nome}")
-
-# Função para salvar recibo e atualizar status no banco de dados
-def salvar_recibo(nome, recibo, mes_ano, data_recibo):
-    client = get_mongo_client()
-    if client:
-        try:
-            collection = client['teste']['financeiro_itnac']
-            data_datetime = datetime.combine(data_recibo, datetime.min.time())
-            recibo_bytes = recibo.read()
-
-            result = collection.update_one(
-                {'nome': nome, 'mes_ano': mes_ano},
-                {
-                    '$inc': {'valor': 50.00},
-                    '$set': {
-                        'recibo': recibo_bytes,
-                        'data': data_datetime,
-                        'pago': True
-                    }
-                }
-            )
-
-            if result.modified_count > 0:
-                st.success(f"Recibo de {nome} salvo e status atualizado!")
-            else:
-                st.error("Erro ao atualizar o recibo no banco de dados.")
-
-        except Exception as e:
-            st.error(f"Erro ao salvar o recibo: {e}")
