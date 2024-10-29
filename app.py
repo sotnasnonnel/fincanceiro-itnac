@@ -66,13 +66,19 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
         # Converter data para datetime
         data_datetime = datetime.combine(data_recibo, datetime.min.time())
 
+        # Ler conteúdo do recibo como bytes
+        recibo_bytes = recibo.read()  # Garante que estamos lendo o conteúdo do arquivo
+        if not recibo_bytes:
+            st.warning("Erro ao ler o conteúdo do recibo.")
+            return
+
         # Incrementa o valor e salva a data no MongoDB
         result = collection.update_one(
             {'nome': nome, 'mes_ano': mes_ano},
             {
                 '$inc': {'valor': 50.00},
                 '$set': {
-                    'recibo': recibo.getvalue(),
+                    'recibo': recibo_bytes,  # Salvar bytes do recibo
                     'data': data_datetime,
                     'pago': True
                 }
@@ -130,7 +136,7 @@ with col_form:
         if st.button("Enviar Recibo"):
             if nome == "Selecionar Nome":
                 st.warning("Por favor, selecione seu nome.")
-            elif not recibo:
+            elif recibo is None:
                 st.warning("Por favor, anexe o recibo.")
             else:
                 salvar_recibo(nome, recibo, mes_ano, data_recibo)
