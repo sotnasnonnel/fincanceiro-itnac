@@ -5,6 +5,10 @@ from datetime import datetime
 import requests
 from urllib.parse import urlencode
 
+# Adicione a função configure_page aqui
+def configure_page():
+    st.set_page_config(layout="wide", page_title="Dashboard", page_icon=":bar_chart:")
+
 # Função para conectar ao MongoDB
 def get_mongo_client():
     try:
