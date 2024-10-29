@@ -1,0 +1,6 @@
+pandas
+plotly
+openpyxl
+mysql-connector-python
+pymongo
+streamlit
