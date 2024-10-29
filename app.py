@@ -3,6 +3,15 @@ import pandas as pd
 from pymongo import MongoClient, errors
 from datetime import datetime
 
+# Função para obter o IP público do servidor
+def get_public_ip():
+    try:
+        response = requests.get('https://api.ipify.org?format=json')
+        ip_data = response.json()
+        return ip_data['ip']
+    except requests.RequestException:
+        return None
+        
 # Conectar ao MongoDB
 def get_mongo_client():
     username = "lennonmms7"
@@ -17,6 +26,13 @@ def get_mongo_client():
         st.error(f"Erro ao conectar ao MongoDB: {err}")
         return None
 
+# Obter o IP público do servidor e exibi-lo
+public_ip = get_public_ip()
+if public_ip:
+    st.info(f"IP público do servidor: {public_ip}")
+else:
+    st.warning("Não foi possível obter o IP público do servidor.")
+    
 # Função para carregar alunos do mês selecionado
 def carregar_lista_alunos(mes_ano):
     client = get_mongo_client()
