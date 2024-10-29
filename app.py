@@ -13,7 +13,7 @@ def get_public_ip():
     except requests.RequestException:
         return None
 
-# Conectar ao MongoDB
+# Função para conectar ao MongoDB
 def get_mongo_client():
     username = "lennonmms7"
     password = "7d5b6r77"
@@ -21,7 +21,7 @@ def get_mongo_client():
     DATABASE_URL = f"mongodb+srv://{username}:{password}@{cluster_address}/?retryWrites=true&w=majority&appName=teste"
     try:
         client = MongoClient(DATABASE_URL, serverSelectionTimeoutMS=5000)
-        client.server_info()
+        client.server_info()  # Teste de conexão
         return client
     except errors.ServerSelectionTimeoutError as err:
         st.error(f"Erro ao conectar ao MongoDB: {err}")
@@ -31,6 +31,7 @@ def get_mongo_client():
 if 'recibo_enviado' not in st.session_state:
     st.session_state['recibo_enviado'] = False
 
+# Função para carregar alunos do mês selecionado
 def carregar_lista_alunos(mes_ano):
     client = get_mongo_client()
     if client:
@@ -42,17 +43,14 @@ def carregar_lista_alunos(mes_ano):
         return pd.DataFrame(registros)
     return pd.DataFrame()
 
+# Função para salvar o recibo e atualizar o status no banco de dados
 def salvar_recibo(nome, recibo, mes_ano, data_recibo):
     client = get_mongo_client()
     if client:
         collection = client['teste']['financeiro_itnac']
-
-        # Converter data para datetime
         data_datetime = datetime.combine(data_recibo, datetime.min.time())
 
-        # Ler conteúdo do recibo como bytes
         recibo_bytes = recibo.read()
-
         if not recibo_bytes:
             st.warning("Erro ao ler o conteúdo do recibo.")
             return
@@ -71,10 +69,11 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
 
         if result.modified_count > 0:
             st.success(f"Recibo de {nome} salvo e status atualizado!")
-            st.session_state['recibo_enviado'] = True  # Atualizar estado
+            st.session_state['recibo_enviado'] = True
         else:
             st.error("Erro ao atualizar o recibo no banco de dados.")
 
+# Gerar lista de meses para o filtro
 def gerar_filtro_meses():
     meses = [
         datetime(year, month, 1).strftime("%m/%Y")
@@ -84,11 +83,14 @@ def gerar_filtro_meses():
     ]
     return meses
 
+# Interface de seleção do mês
 mes_ano = st.sidebar.selectbox("Selecione o Mês/Ano", gerar_filtro_meses(), index=0)
 alunos_df = carregar_lista_alunos(mes_ano)
 
+# Layout: formulário e lista de pagamentos
 col_form, col_listas = st.columns([2, 1], gap="large")
 
+# Formulário de envio de recibo
 with col_form:
     st.title("🎓 Tesouraria da Formatura")
     st.header("Envio de Recibo")
@@ -106,15 +108,21 @@ with col_form:
             type=["pdf", "jpg", "png"]
         )
 
-        if st.button("Enviar Recibo") and nome != "Selecionar Nome" and recibo:
-            salvar_recibo(nome, recibo, mes_ano, data_recibo)
+        if st.button("Enviar Recibo"):
+            if nome == "Selecionar Nome":
+                st.warning("Por favor, selecione seu nome.")
+            elif not recibo:
+                st.warning("Por favor, anexe o recibo.")
+            else:
+                salvar_recibo(nome, recibo, mes_ano, data_recibo)
 
         if st.session_state['recibo_enviado']:
             st.success("Formulário enviado com sucesso!")
-            st.session_state['recibo_enviado'] = False  # Resetar estado após exibição
+            st.session_state['recibo_enviado'] = False  # Resetar estado
     else:
         st.warning("Nenhum aluno cadastrado para este mês.")
 
+# Lista de pagamentos
 with col_listas:
     st.subheader(f"✅ Pagamentos Realizados ({mes_ano})")
     pagos = alunos_df[alunos_df['pago'] == True]
@@ -132,7 +140,6 @@ with col_listas:
     else:
         for nome in pendentes['nome']:
             st.write(f"- {nome}")
-
 
 # Exibir o valor total arrecadado na sidebar
 valor_mes = alunos_df[alunos_df['pago'] == True]['valor'].sum() if 'valor' in alunos_df.columns else 0
