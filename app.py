@@ -12,7 +12,7 @@ def get_public_ip():
         return ip_data['ip']
     except requests.RequestException:
         return None
-        
+
 # Conectar ao MongoDB
 def get_mongo_client():
     username = "lennonmms7"
@@ -27,14 +27,10 @@ def get_mongo_client():
         st.error(f"Erro ao conectar ao MongoDB: {err}")
         return None
 
-# Obter o IP público do servidor e exibi-lo
-public_ip = get_public_ip()
-if public_ip:
-    st.info(f"IP público do servidor: {public_ip}")
-else:
-    st.warning("Não foi possível obter o IP público do servidor.")
-    
-# Função para carregar alunos do mês selecionado
+# Inicializar o estado do Streamlit
+if 'recibo_enviado' not in st.session_state:
+    st.session_state['recibo_enviado'] = False
+
 def carregar_lista_alunos(mes_ano):
     client = get_mongo_client()
     if client:
@@ -46,18 +42,6 @@ def carregar_lista_alunos(mes_ano):
         return pd.DataFrame(registros)
     return pd.DataFrame()
 
-# Função para carregar todos os valores para cálculo geral
-def carregar_todos_os_valores():
-    client = get_mongo_client()
-    if client:
-        collection = client['teste']['financeiro_itnac']
-        registros = list(collection.find(
-            {'pago': True}, {'_id': 0, 'valor': 1}
-        ))
-        return sum([registro['valor'] for registro in registros])
-    return 0
-
-# Função para salvar recibo e atualizar o status no banco de dados
 def salvar_recibo(nome, recibo, mes_ano, data_recibo):
     client = get_mongo_client()
     if client:
@@ -67,18 +51,18 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
         data_datetime = datetime.combine(data_recibo, datetime.min.time())
 
         # Ler conteúdo do recibo como bytes
-        recibo_bytes = recibo.read()  # Garante que estamos lendo o conteúdo do arquivo
+        recibo_bytes = recibo.read()
+
         if not recibo_bytes:
             st.warning("Erro ao ler o conteúdo do recibo.")
             return
 
-        # Incrementa o valor e salva a data no MongoDB
         result = collection.update_one(
             {'nome': nome, 'mes_ano': mes_ano},
             {
                 '$inc': {'valor': 50.00},
                 '$set': {
-                    'recibo': recibo_bytes,  # Salvar bytes do recibo
+                    'recibo': recibo_bytes,
                     'data': data_datetime,
                     'pago': True
                 }
@@ -87,11 +71,10 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
 
         if result.modified_count > 0:
             st.success(f"Recibo de {nome} salvo e status atualizado!")
-            st.experimental_rerun()  # Recarregar a interface após sucesso
+            st.session_state['recibo_enviado'] = True  # Atualizar estado
         else:
             st.error("Erro ao atualizar o recibo no banco de dados.")
 
-# Gerar filtro de meses no formato MM/YYYY
 def gerar_filtro_meses():
     meses = [
         datetime(year, month, 1).strftime("%m/%Y")
@@ -101,49 +84,37 @@ def gerar_filtro_meses():
     ]
     return meses
 
-# Filtro de meses na sidebar
 mes_ano = st.sidebar.selectbox("Selecione o Mês/Ano", gerar_filtro_meses(), index=0)
-
-# Carregar alunos para o mês selecionado
 alunos_df = carregar_lista_alunos(mes_ano)
 
-# Layout com duas colunas: formulário e lista de pagamentos
 col_form, col_listas = st.columns([2, 1], gap="large")
 
-# Formulário de envio de recibo e exibição do Pix
 with col_form:
     st.title("🎓 Tesouraria da Formatura")
     st.header("Envio de Recibo")
-    st.info("💳 Pagamento via Pix: **11737030632**")  # Exibe o Pix
+    st.info("💳 Pagamento via Pix: **11737030632**")
 
     if not alunos_df.empty:
-        # Selectbox com placeholder "Selecionar Nome"
         nomes = ["Selecionar Nome"] + list(alunos_df[alunos_df['pago'] == False]['nome'])
         nome = st.selectbox("Selecione seu nome", nomes)
-
-        # Campo de seleção da data do recibo
         data_recibo = st.date_input("Data do Recibo", datetime.today().date())
-
-        # Exibir a data no formato brasileiro (dd/mm/yyyy)
         data_formatada = data_recibo.strftime('%d/%m/%Y')
-        st.write(f"📅 Data Selecionada: **{data_formatada}**")  # Exibe data formatada
+        st.write(f"📅 Data Selecionada: **{data_formatada}**")
 
         recibo = st.file_uploader(
             "Arraste e solte o arquivo ou clique para selecionar",
             type=["pdf", "jpg", "png"]
         )
 
-        if st.button("Enviar Recibo"):
-            if nome == "Selecionar Nome":
-                st.warning("Por favor, selecione seu nome.")
-            elif recibo is None:
-                st.warning("Por favor, anexe o recibo.")
-            else:
-                salvar_recibo(nome, recibo, mes_ano, data_recibo)
+        if st.button("Enviar Recibo") and nome != "Selecionar Nome" and recibo:
+            salvar_recibo(nome, recibo, mes_ano, data_recibo)
+
+        if st.session_state['recibo_enviado']:
+            st.success("Formulário enviado com sucesso!")
+            st.session_state['recibo_enviado'] = False  # Resetar estado após exibição
     else:
         st.warning("Nenhum aluno cadastrado para este mês.")
 
-# Lista de pagamentos
 with col_listas:
     st.subheader(f"✅ Pagamentos Realizados ({mes_ano})")
     pagos = alunos_df[alunos_df['pago'] == True]
@@ -151,7 +122,6 @@ with col_listas:
         st.info("Nenhum aluno realizou o pagamento ainda.")
     else:
         for _, row in pagos.iterrows():
-            # Exibir a data no formato brasileiro
             data_formatada = row['data'].strftime('%d/%m/%Y') if pd.notnull(row['data']) else 'Sem data'
             st.write(f"- {row['nome']} (Data: {data_formatada})")
 
@@ -162,6 +132,7 @@ with col_listas:
     else:
         for nome in pendentes['nome']:
             st.write(f"- {nome}")
+
 
 # Exibir o valor total arrecadado na sidebar
 valor_mes = alunos_df[alunos_df['pago'] == True]['valor'].sum() if 'valor' in alunos_df.columns else 0
