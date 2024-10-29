@@ -19,6 +19,7 @@ def get_mongo_client():
         st.error(f"Erro ao conectar ao MongoDB: {err}")
         return None
 
+# Função para salvar recibo e atualizar status no banco de dados
 def salvar_recibo(nome, recibo, mes_ano, data_recibo):
     client = get_mongo_client()
     if client:
@@ -41,7 +42,8 @@ def salvar_recibo(nome, recibo, mes_ano, data_recibo):
 
             if result.modified_count > 0:
                 st.success(f"Recibo de {nome} salvo e status atualizado!")
-                st.experimental_rerun()  # Recarrega a interface após o sucesso
+                # Simula uma recarga leve da interface
+                st.experimental_set_query_params(recarregar="true")
             else:
                 st.error("Erro ao atualizar o recibo no banco de dados.")
 
