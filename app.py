@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pymongo import MongoClient, errors
 from datetime import datetime
+import requests
 
 # Função para obter o IP público do servidor
 def get_public_ip():
