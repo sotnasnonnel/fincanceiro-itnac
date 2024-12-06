@@ -103,8 +103,17 @@ def gerar_filtro_meses():
     ]
     return meses
 
+# Encontrar o mês/ano atual no formato desejado
+mes_atual = datetime.today().strftime("%m/%Y")
+
+# Obter a lista de meses
+meses = gerar_filtro_meses()
+
+# Definir o índice inicial para o mês atual
+indice_mes_atual = meses.index(mes_atual) if mes_atual in meses else 0
+
 # Interface de seleção do mês
-mes_ano = st.sidebar.selectbox("Selecione o Mês/Ano", gerar_filtro_meses(), index=0)
+mes_ano = st.sidebar.selectbox("Selecione o Mês/Ano", meses, index=indice_mes_atual)
 
 # Carregar alunos e valores
 alunos_df = carregar_lista_alunos(mes_ano)
